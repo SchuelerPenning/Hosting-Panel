@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from mysql import connector
 
+from models.user import User
 from cursor import DBCursor
 
 
@@ -40,7 +41,7 @@ class DatabaseHandler:
         created_at = datetime.now()
         expires_at = created_at + timedelta(seconds=session_duration)
 
-        query = "INSERT INTO sessions (session_id, user_id, created_at, expires_at, session_data) VALUES (%s, %s, %s, %s, %s)"
+        query = "INSERT INTO sessions (session_id, user_id, created_at, expires_at, session_data) VALUES (%s, %s, %s, %s, %s);"
         values = (session_id, user_id, created_at, expires_at, session_data)
         with self.get_cursor() as cursor:
             cursor.execute(query, values)
@@ -54,7 +55,7 @@ class DatabaseHandler:
         :param session_id:
         :return:
         """
-        query = "SELECT * FROM sessions WHERE session_id = %s AND expires_at > NOW()"
+        query = "SELECT * FROM sessions WHERE session_id = %s AND expires_at > NOW();"
         with self.get_cursor() as cursor:
             cursor.execute(query, (session_id,))
         session = cursor.fetchone()
@@ -68,7 +69,7 @@ class DatabaseHandler:
         :return:
         """
         updated_at = datetime.now()
-        query = "UPDATE sessions SET session_data = %s WHERE session_id = %s"
+        query = "UPDATE sessions SET session_data = %s WHERE session_id = %s;"
         values = (session_data, updated_at, session_id)
         with self.get_cursor() as cursor:
             cursor.execute(query, values)
@@ -81,7 +82,7 @@ class DatabaseHandler:
         :param new_expires_at:
         :return:
         """
-        query = "UPDATE sessions SET expires_at = %s WHERE session_id = %s"
+        query = "UPDATE sessions SET expires_at = %s WHERE session_id = %s;"
         values = (new_expires_at, session_id)
         with self.get_cursor() as cursor:
             cursor.execute(query, values)
@@ -93,10 +94,98 @@ class DatabaseHandler:
         :param session_id:
         :return:
         """
-        query = "DELETE FROM sessions WHERE session_id = %s"
+        query = "DELETE FROM sessions WHERE session_id = %s;"
         with self.get_cursor() as cursor:
             cursor.execute(query, (session_id,))
         self.connection.commit()
 
-    def create_user(self, username: str, email: str, firstname: str, lastname: str, street: str, number: str, postcode: str, city: str, country: str) -> None:
+    def validate_session(self, session_id: UUID) -> bool:
+        """
+        Checks if a session exists and is not expired
+        :param session_id:
+        :return:
+        """
+        query = "SELECT * FROM sessions WHERE session_id = %s and expires_at < NOW();"
+        values = (session_id,)
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
+            results = cursor.fetchall()
+        return True if results else False
+
+    def create_user(self, username: str, email: str, firstname: str, lastname: str, street: str, number: str,
+                    postcode: str, city: str, country: str, password_hash: str) -> None:
+        """
+        Creates a new user in the database the specified data
+        :param username:
+        :param email:
+        :param firstname:
+        :param lastname:
+        :param street:
+        :param number:
+        :param postcode:
+        :param city:
+        :param country:
+        :param password_hash:
+        :return:
+        """
+        query_users = "INSERT INTO users (username, email, firstname, lastname, street, number, postcode, city, country) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);"
+        values_users = (username, email, lastname, firstname, street, number, postcode, city, country)
+        with self.get_cursor() as cursor:
+            cursor.execute(query_users, values_users)
+            cursor.execute("SELECT id FROM users WHERE username = %s;", (username,))
+            user_id = cursor.fetchone()[0]
+        query_auth = "INSERT INTO auth (id, username, email, password) VALUES (%s, %s, %s, %s);"
+        values_auth = (user_id, username, email, password_hash)
+        with self.get_cursor() as cursor:
+            cursor.execute(query_auth, values_auth)
+
+    def update_user(self, modified_user: User) -> None:
         pass
+
+    def delete_user(self, user_id: int) -> None:
+        """
+        Deletes the user with the specified id form the database
+        :param user_id:
+        :return:
+        """
+        query = "DELETE FROM users WHERE user_id = %s;"
+        values = (user_id,)
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
+
+    def fetch_user(self, user_id: int) -> User | None:
+        """
+        Fetches a user by his id from the database
+        :param user_id:
+        :return:
+        """
+        query = "SELECT * FROM users WHERE user_id = %s;"
+        values = (user_id,)
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
+        return cursor.fetchone()
+
+    def disable_user(self, user_id: int) -> None:
+        """
+        Sets a user's state to disabled; revokes the ability to act for that user
+        :param user_id:
+        :return:
+        """
+        query = "UPDATE users SET state = 'disabeld' WHERE user_id = %s;"
+        values = (user_id,)
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
+
+    def authenticate_credentials(self, email: str, password_hash: str) -> int:
+        """
+        Checks if the given credentials are in the database and returns the user's ID
+        :param email:
+        :param password_hash:
+        :return:
+        """
+        query = "SELECT id FROM users WHERE email = %s AND password_hash = %s;"
+        values = (email, password_hash)
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
+            all_results = cursor.fetchall()
+        return all_results[0] if len(all_results) == 1 else -1
