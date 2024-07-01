@@ -140,7 +140,31 @@ class DatabaseHandler:
             cursor.execute(query_auth, values_auth)
 
     def update_user(self, modified_user: User) -> None:
-        pass
+        """
+        Updates the specified user in the database
+        :param modified_user:
+        :return:
+        """
+        query = """
+            UPDATE users
+            SET username = %s, email = %s, firstname = %s, lastname = %s, role = %s, street = %s, number = %s, postcode = %s, city = %s, country = %s
+            WHERE id = %s;
+        """
+        values = (
+            modified_user.username,
+            modified_user.email,
+            modified_user.firstname,
+            modified_user.lastname,
+            modified_user.role,
+            modified_user.street,
+            modified_user.number,
+            modified_user.postcode,
+            modified_user.city,
+            modified_user.country,
+            modified_user.user_id
+        )
+        with self.get_cursor() as cursor:
+            cursor.execute(query, values)
 
     def delete_user(self, user_id: int) -> None:
         """
