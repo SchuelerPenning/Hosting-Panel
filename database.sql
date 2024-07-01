@@ -13,7 +13,7 @@ CREATE TABLE `users` (
     `id` int(16) NOT NULL AUTO_INCREMENT,
     `username` varchar(32) NOT NULL,
     `email` varchar(32) NOT NULL,
-    `state` enum('pending','active','banned') DEFAULT 'pending',
+    `state` enum('pending','active','disabled') DEFAULT 'pending',
     `firstname` varchar(32) NOT NULL,
     `lastname` varchar(32) NOT NULL,
     `role` enum('customer','supporter', 'admin') DEFAULT 'customer',
